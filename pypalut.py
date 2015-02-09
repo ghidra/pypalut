@@ -5,7 +5,7 @@ import colorsys
 from PIL import Image, ImageFilter
 
 debug=True
-#colors_all=[]
+colors_all=[]
 
 table=[]#vanilla table generated based on span
 table_rgb=[]
@@ -14,7 +14,8 @@ table_hsv=[]#the hsv space version
 table_palette=[]#the palette being fitted
 table_distance=[]#the distance of the palette from the table for comparrison
 
-span = 8 # this is the cube root of the table ie 8*8*8
+span = 4 # this is the cube root of the table ie 8*8*8
+span_mult = 2 #this doubles the size of span, so its like a pixel multiplier
 max_samples = 50000
 #similar_threshold = 1.0
 
@@ -39,6 +40,12 @@ def color_distance_rgb(c1,c2):
 def build_vanilla_table():
     global span
     global table
+    global table_rgb
+    global table_hls
+    global table_hsv
+    global table_palette
+    global table_distance
+
     tbsize = span**3
     tbsqr = span**2
     for i in range(tbsize):
@@ -66,17 +73,23 @@ def build_vanilla_table():
 
 def display_table(file=""):
     global span
+    global span_mult
+    global table_palette
+
     width = span**2
-    im = Image.new("RGB", (width, span), (0,0,0))
+    swatch = 1*span_mult
+    if file=="":
+        swatch = 10
+    im = Image.new("RGB", (width*swatch, span*swatch), (0,0,0))
     count = 0
     for i in table_palette:
         column = count%span
         row = math.floor(count/span)%span
         plane = math.floor(count/width)
 
-        x = int((plane*span)+column)
-        y = int(row)
-        im.paste(i,(x,y,int(x+1),int(y+1)))
+        x = int(((plane*span)+column)*swatch)
+        y = int(row*swatch)
+        im.paste(i,(x,y,int(x+swatch),int(y+swatch)))
         count+=1
     #im.show()
     if file!="":
@@ -95,13 +108,20 @@ def main(kwargs):
     global debug
     global max_samples
 
+    global table
+    global table_rgb
+    global table_hls
+    global table_hsv
+    global table_palette
+    global table_distance
+
     build_vanilla_table()
 
     my_im = load_image(kwargs[1])
 
     if my_im != "error":
         w,h = my_im.size
-        fuzzy = 2 #int(math.floor( max(1,( (w*h)/max_samples ) ) ) )
+        fuzzy = 5 #int(math.floor( max(1,( (w*h)/max_samples ) ) ) )
         #fuzzy = (w*h)-max_samples
         #count=0
         if debug:
@@ -119,19 +139,36 @@ def main(kwargs):
                 c_rgb = (c[0]/255.0,c[1]/255.0,c[2]/255.0) #convert to 0-1
                 #chls = colorsys.rgb_to_hls(c[0]/255.0,c[1]/255.0,c[2]/255.0)
                 #chsv = colorsys.rgb_to_hsv(c[0],c[1],c[2])
+                colors_all.append(c)
 
                 #loop against the vanilla palette
                 count = 0
                 for tc in table_rgb:
-                    distance = color_distance_rgb(c_rgb,tc)
+                    vec = (tc[0]-c_rgb[0],tc[1]-c_rgb[1],tc[2]-c_rgb[2])
+                    distance = math.sqrt( (vec[0]*vec[0])+(vec[1]*vec[1])+(vec[2]*vec[2]) )
+
+                    #distance = color_distance_rgb(c_rgb,tc)
                     #print distance
                     if(distance < table_distance[count]):
                         table_palette[count]=c
                         table_distance[count]=distance
                     count+=1
 
+        #now we can loop the colors and find the closest to our vanilla table
+        '''count = 0
+        for col in colors_all:
+            rgb = (table_rgb[count][0]/255.0,colors_all[count][1]/255.0,colors_all[count][2]/255.0)
+            vec = (rgb[0]-col[0],rgb[1]-col[1],rgb[2]-col[2])
+            dist = math.sqrt( (vec[0]*vec[0])+(vec[1]*vec[1])+(vec[2]*vec[2]) )
+            if dist < table_distance[count]:
+                table_distance[count] = dist
+                table_palette[count]=colors_all[count]
+            count+=1'''
+
+
 
         display_table(kwargs[2])
+
 
 
     else:
