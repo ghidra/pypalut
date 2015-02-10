@@ -4,6 +4,122 @@ import math
 import colorsys
 from PIL import Image, ImageFilter
 
+class pypalut:
+    span = 8 # the cube root of th lut size span^3
+    im = "error" # the read in image
+    output = "" #the file to save
+    w,h = 1 #the width and height of read in image
+
+    colors_all=[] #the colors from the image
+
+    table=[]#255 values
+
+    table_rgb=[]#1 values
+    table_hls=[]#the hls space verion NOT USED YET
+    table_hsv=[]#the hsv space version NOT USED YET
+
+    table_palette=[]#the palette being fitted
+    table_distance=[]
+
+    fuzzy = 5
+    debug = True
+
+    display_pixel_size = 10
+
+    def __init__(self,img,out="",size=8,fuz=5,dbg=True,dps = 10):
+        self.span = size
+        self.build()
+        self.load(img)
+
+        self.fuzzy=fuz
+        self.debug = dbg
+        self.display_pixel_size = dps
+
+        if self.im == "success":
+            self.w,self.h = my_im.size
+            if self.debug:
+                print "image info:"+str(self.w)+","+str(self.h)+" : "+str(self.w*self.h)
+                print "fuzzy numbers:"+str(fuzzy)+" : "+str(math.floor(w/fuzzy))+","+str(math.floor(h/fuzzy))+" : "+str((math.floor(w/fuzzy))*(math.floor(h/fuzzy)))
+            self.generate()
+
+    def generate(self):
+        l = self.im.load()
+        for x in range(0,w-1,self.fuzzy):
+            for y in range(0,h-1,self.fuzzy):
+                c = l[x,y]
+                c_rgb = (c[0]/255.0,c[1]/255.0,c[2]/255.0) #convert to 0-1
+                #chls = colorsys.rgb_to_hls(c[0]/255.0,c[1]/255.0,c[2]/255.0)
+                #chsv = colorsys.rgb_to_hsv(c[0],c[1],c[2])
+                self.colors_all.append(c)
+
+                #loop against the vanilla palette
+                count = 0
+                for tc in self.table_rgb:
+
+                    distance = self.distance(tc,c_rgb);
+
+                    if(distance < self.table_distance[count]):
+                        self.table_palette[count]=c
+                        self.table_distance[count]=distance
+
+                    count+=1
+
+        self.process()
+
+    def process():
+        width = self.span**2
+        swatch = 1*self.display_pixel_size
+        if self.output=="":
+            swatch = 10
+        img = Image.new("RGB", (width*swatch, span*swatch), (0,0,0))
+        count = 0
+        for i in table_palette:
+            column = count%self.span
+            row = math.floor(count/self.span)%self.span
+            plane = math.floor(count/width)
+
+            x = int(((plane*self.span)+column)*swatch)
+            y = int(row*swatch)
+            img.paste(i,(x,y,int(x+swatch),int(y+swatch)))
+            count+=1
+
+        if self.output!="":
+            img.save(self.output,"PNG")
+        else:
+            img.show()
+
+    def distance(self,c1,c2):
+        v = (c1[0]-c2[0],c1[1]-c2[1],c1[2]-c2[2])
+        return math.sqrt( (v[0]*v[0])+(v[1]*v[1])+(v[2]*v[2]) )
+
+    def build(self):
+        tbsize = self.span**3
+        tbsqr = self.span**2
+        for i in range(tbsize):
+            column = i%self.span
+            row = math.floor(i/self.span)%self.span
+            plane = math.floor(i/tbsqr)
+
+            r = int(math.floor((column/(self.span-1.0))*255.0))
+            g = int(math.floor((row/(self.span-1.0))*255.0))
+            b = int(math.floor((plane/(self.span-1.0))*255.0))
+
+            self.table.append((r,g,b))
+            self.table_rgb.append( (r/255.0,g/255.0,b/255.0) )
+            self.table_hls.append(colorsys.rgb_to_hls(r/255.0,g/255.0,b/255.0))
+            self.table_hsv.append(colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0))
+
+            self.table_palette.append((255,255,255))
+            self.table_distance.append(1000.0)
+
+
+    def load(self, img):
+        try:
+          self.im = Image.open(img)
+          return "success"
+        except:
+          return "error"
+
 debug=True
 colors_all=[]
 
@@ -153,19 +269,6 @@ def main(kwargs):
                         table_palette[count]=c
                         table_distance[count]=distance
                     count+=1
-
-        #now we can loop the colors and find the closest to our vanilla table
-        '''count = 0
-        for col in colors_all:
-            rgb = (table_rgb[count][0]/255.0,colors_all[count][1]/255.0,colors_all[count][2]/255.0)
-            vec = (rgb[0]-col[0],rgb[1]-col[1],rgb[2]-col[2])
-            dist = math.sqrt( (vec[0]*vec[0])+(vec[1]*vec[1])+(vec[2]*vec[2]) )
-            if dist < table_distance[count]:
-                table_distance[count] = dist
-                table_palette[count]=colors_all[count]
-            count+=1'''
-
-
 
         display_table(kwargs[2])
 
