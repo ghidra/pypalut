@@ -27,30 +27,59 @@ class pypalut:
 
     display_pixel_size = 10 #when shwoing the resulting palette, multiply pixels by this
 
-    def __init__(self,img,out="",size=8,fuz=5,dbg=True,dps = 10):
-        self.span=4
-        #self.span = size
-        self.build()
+    def __init__(self,fuz=5,dbg=True,dps = 10):
         self.fuzzy=fuz
         self.debug = dbg
         self.display_pixel_size = dps
+        if dbg:
+            print "------------------------"
+            print "-------- pypalut -------"
+
+    def singlepass(self,img,out="",size=8):
+        if self.debug:
+            print "----- single pass ------"
+
+        self.span=size
+        self.build()
 
         self.load(img)
         self.generate(self.im)
-        self.im = self.process(out,True)
+        self.im = self.process(out,False)
+
+        if self.debug:
+            print "------ complete -------"
+            print "-----------------------"
+
+    def multipass(self,img,out="",size_a=4,size_b=16):
+        if self.debug:
+            print "------ multi pass ------"
+
+        self.span=size_a
+        self.build()
+        self.load(img)
+        self.generate(self.im)
+        self.im = self.process("",True)
         #pass 2
+        if self.debug:
+            print "----- second pass ------"
+
         self.clear_tables()
-        self.span=16#size
-        self.display_pixel_size = 4
+        self.span=size_b
+        self.fuzzy=1
+        self.display_pixel_size = int(self.display_pixel_size*(float(size_a)/float(size_b)))
         self.build()
         self.load_buffer(self.im)
         self.generate(self.im)
         self.process(out)
 
+        if self.debug:
+            print "------ complete -------"
+            print "-----------------------"
+
 
     def generate(self,img,buffer=False):
         if self.debug:
-            print "generate: generate lut from palette"
+            print "     generate"
 
         l = self.im.load()
         for x in range(0,self.w-1,self.fuzzy):
@@ -77,7 +106,7 @@ class pypalut:
 
     def process(self,out,multipass=False):
         if self.debug:
-            print "process: mange resulting lut"
+            print "     process"
         width = self.span**2
         swatch = 1
         if out=="" and not multipass:
@@ -121,7 +150,7 @@ class pypalut:
 
     def build(self):
         if self.debug:
-            print "generate: generate default lut"
+            print "     build"
         tbsize = self.span**3
         tbsqr = self.span**2
         for i in range(tbsize):
@@ -144,13 +173,13 @@ class pypalut:
 
     def load(self, img):
         if self.debug:
-            print "load: load image off disk"
+            print "     load image"
         try:
             self.im = Image.open(img)
             self.w,self.h = self.im.size
             if self.debug:
-                print "image info:"+str(self.w)+","+str(self.h)+" : "+str(self.w*self.h)
-                print "fuzzy numbers:"+str(self.fuzzy)+" : "+str(math.floor(self.w/self.fuzzy))+","+str(math.floor(self.h/self.fuzzy))+" : "+str((math.floor(self.w/self.fuzzy))*(math.floor(self.h/self.fuzzy)))
+                print "     -w:"+str(self.w)+" -h:"+str(self.h)+" -t:"+str(self.w*self.h)
+                print "     -f:"+str(self.fuzzy)+" -w:"+str(math.floor(self.w/self.fuzzy))+" -h:"+str(math.floor(self.h/self.fuzzy))+" -t:"+str((math.floor(self.w/self.fuzzy))*(math.floor(self.h/self.fuzzy)))
             #self.generate()
 
         except:
@@ -158,17 +187,19 @@ class pypalut:
 
     def load_buffer(self,buffer,fuzzy=1):
         if self.debug:
-            print "load buffer: use generated image"
+            print "     load buffer"
         self.w,self.h = buffer.size
         self.fuzzy = 1
         if self.debug:
-            print "image info:"+str(self.w)+","+str(self.h)+" : "+str(self.w*self.h)
-            print "fuzzy numbers:"+str(self.fuzzy)+" : "+str(math.floor(self.w/self.fuzzy))+","+str(math.floor(self.h/self.fuzzy))+" : "+str((math.floor(self.w/self.fuzzy))*(math.floor(self.h/self.fuzzy)))
+            print "     -w:"+str(self.w)+" -h:"+str(self.h)+" -t:"+str(self.w*self.h)
+            print "     -f:"+str(self.fuzzy)+" -w:"+str(math.floor(self.w/self.fuzzy))+" -h:"+str(math.floor(self.h/self.fuzzy))+" -t:"+str((math.floor(self.w/self.fuzzy))*(math.floor(self.h/self.fuzzy)))
 
 
 
 def main(kwargs):
-    lut = pypalut(kwargs[1],"",8,10);
+    lut = pypalut();
+    #lut.singlepass(kwargs[1],"")
+    lut.multipass(kwargs[1],"")
 
 
 if __name__ == "__main__":
